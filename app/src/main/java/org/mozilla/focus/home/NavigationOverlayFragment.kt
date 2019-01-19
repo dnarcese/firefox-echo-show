@@ -15,7 +15,6 @@ import android.view.View
 import android.view.ViewGroup
 import kotlinx.android.synthetic.main.fragment_navigation_overlay.*
 import kotlinx.android.synthetic.main.fragment_navigation_overlay.view.*
-import kotlinx.coroutines.experimental.CancellationException
 import org.mozilla.focus.R
 import org.mozilla.focus.UrlSearcher
 import org.mozilla.focus.browser.BrowserFragmentCallbacks
@@ -23,6 +22,7 @@ import org.mozilla.focus.browser.HomeTileGridNavigation
 import org.mozilla.focus.browser.HomeTileLongClickListener
 import org.mozilla.focus.ext.updateLayoutParams
 import org.mozilla.focus.telemetry.TelemetryWrapper
+import org.mozilla.focus.utils.FragmentViewUiCoroutineScope
 
 private const val KEY_IS_OVERLAY_ON_STARTUP = "isOverlayOnStartup"
 
@@ -40,8 +40,11 @@ class NavigationOverlayFragment : Fragment() {
     val isOverlayOnStartup: Boolean by lazy { arguments!!.getBoolean(KEY_IS_OVERLAY_ON_STARTUP) }
 
     private val callbacks: BrowserFragmentCallbacks? get() = activity as BrowserFragmentCallbacks?
+    private val viewUiCoroutineScope = FragmentViewUiCoroutineScope()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View? {
+        viewUiCoroutineScope.onCreateView()
+
         val overlay = inflater.inflate(R.layout.fragment_navigation_overlay, container, false)
 
         val isVisibleInDialogMode = arrayOf(overlay.semiOpaqueBackground, overlay.dismissHitTarget)
@@ -49,8 +52,7 @@ class NavigationOverlayFragment : Fragment() {
         val isVisibleInStartupMode = arrayOf(overlay.initialHomescreenBackground)
         isVisibleInStartupMode.forEach { it.visibility = if (isOverlayOnStartup) View.VISIBLE else View.GONE }
 
-        overlay.homeTiles.urlSearcher = activity as UrlSearcher
-
+        overlay.homeTiles.init(viewUiCoroutineScope, activity as UrlSearcher)
         setOverlayHeight(overlay.homeTiles)
 
         NavigationOverlayAnimations.onCreateViewAnimateIn(overlay, isOverlayOnStartup, isBeingRestored = savedInstanceState != null) {
@@ -64,11 +66,7 @@ class NavigationOverlayFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
-
-        // Since we start the async jobs in View.init and Android is inflating the view for us,
-        // there's no good way to pass in the uiLifecycleJob. We could consider other solutions
-        // but it'll add complexity that I don't think is probably worth it.
-        homeTiles.uiLifecycleCancelJob.cancel(CancellationException("Parent lifecycle has ended"))
+        viewUiCoroutineScope.onDestroyView()
     }
 
     private fun setOverlayHeight(homeTiles: HomeTileGridNavigation) {
