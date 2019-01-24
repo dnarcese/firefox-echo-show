@@ -32,10 +32,7 @@ class HomeTileGridNavigation @JvmOverloads constructor(
     // since we init the tiles in View.init and Android is inflating the view for us,
     // thus we need to use Delegates.observable to update onTileLongClick.
     var homeTileLongClickListener: HomeTileLongClickListener? = null
-
     var onTileClicked: ((value: String) -> Unit)? = null
-    /** Called inside [setVisibility] right before super.setVisibility is called. */
-    var onPreSetVisibilityListener: ((isVisible: Boolean) -> Unit)? = null
 
     fun init(uiScope: CoroutineScope, urlSearcher: UrlSearcher) {
         initTiles(uiScope, urlSearcher)
@@ -68,7 +65,6 @@ class HomeTileGridNavigation @JvmOverloads constructor(
     }
 
     override fun setVisibility(visibility: Int) {
-        onPreSetVisibilityListener?.invoke(visibility == View.VISIBLE)
         super.setVisibility(visibility)
         scrollTo(0, 0)
     }
